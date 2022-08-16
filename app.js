@@ -1,53 +1,44 @@
+const dotenv = require('dotenv').config();
 const express = require("express");
+const session = require("express-session");  // helps to creates a session middleware
+const MongoStore = require("connect-mongo");  // helps to store sessions in database   don't use (session) it is giving an error
+const mongoose = require("mongoose");   // helps to connect with mongodb Data base
+
 const app = express();
 
+mongoose.connect("mongodb://localhost:27017/userAuth_DB",{
+    useNewUrlParser:true,
+    useUnifiedTopology:true
+})
+.then(function(){
+    console.log("MongoDB connected successfully");
+});
 
-app.use(middleware1);
-app.use(middleware2);
-app.use(middleware3);
 
-
-function middleware1(request, response, next){
-    console.log("this is middleware 1 -- global middleware");
-    request.noOfShirts = 100 ;
-    request.name = "Satyanarayan Dalei";
-    next()
-}
-function middleware2 (request,response, movenext){
-    console.log("This is middleware no 2 -- global middleware");
-    console.log(request.noOfShirts);
-    request.name = "Satyajit Dalei"
-    movenext();
-}
-function middleware3 (request,response, movenext){
-    console.log("This is middleware no 3 -- global middleware");
-    request.name = "Puspanjali Dalei"
-    movenext();
-}
-function standardfunction(request, response, nextmiddleware){
-    console.log("This is another middleware - route specific middleware");
-    response.send("<h1>Hello Everyone</h1>");
-    console.log(request.name);
-
+const sessionStore = {
+    mongoUrl: "mongodb://localhost:27017/userAuth_DB",
+    collectionName : 'sessions'
 }
 
-function errorHandler(error,req,res,movenext){
-     if(error){
-        res.send("<h1>Opps there is an error</h1>");
-     }
-}
-
-app.get("/", standardfunction);
-
+app.use(session({
+    secret: process.env.SECRET,
+    resave:false,
+    saveUninitialized:false,
+    store : MongoStore.create(sessionStore)
+}))
 
 
 
 
+app.get("/", function(req,res){
+    req.session.isAuth = true ;
+    console.log(req.session);
+    console.log(req.session.id);
+    res.send("Hello and welcome world!");
+});
 
 
 
-
-app.use(errorHandler);
 app.listen(4000, function(){
     console.log("Server started in 4000 port");
 })
