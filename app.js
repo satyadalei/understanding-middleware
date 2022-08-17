@@ -18,7 +18,7 @@ mongoose.connect("mongodb://localhost:27017/userAuth_DB",{
 });
 
 
-const sessionStore = {
+const sessionStoreOptions = {
     mongoUrl: "mongodb://localhost:27017/userAuth_DB",
     collectionName : 'sessions'
 }
@@ -27,7 +27,10 @@ app.use(session({
     secret: process.env.SECRET,
     resave:false,
     saveUninitialized:false,
-    store : MongoStore.create(sessionStore)
+    store : MongoStore.create(sessionStoreOptions),
+    cookie: {
+        maxAge: 1000*60*60 // cookie expires within 1hr
+    }
 }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -51,9 +54,12 @@ app.get("/login", function(req,res){
 app.get("/registration", function(req,res){
     res.render("registration");
 });
-app.get("/secret",function(req,res){
+app.get("/secret/:id",async function(req,res){
     if(req.session.isAuth === true){
-        res.render("secret");
+       const userId = req.params.id ;
+       User.findOne({_id:userId},function(err,foundUser){
+        res.render("secret",{userName:foundUser.fname});
+       });
     }else{
         res.render("login");
     }
@@ -65,10 +71,11 @@ app.post("/login", async function(req,res){
            if(err){
              console.log(err);
            }else{
-            bcrypt.compare(userPassword, foundUser.password , function(error, passwordConfirmed){
+            bcrypt.compare(userPassword, foundUser.password , async function(error, passwordConfirmed){
                 if(passwordConfirmed === true){
                     req.session.isAuth = true ;
-                    res.redirect("/secret");
+                    user_ID = foundUser._id
+                    res.redirect(`/secret/${user_ID}`);
                  }else{
                     res.redirect("/login");
                  }
@@ -85,6 +92,7 @@ app.post("/registration", async function(req,res){
         const combinedUrl = "<a href="+regis_LinkUUrl +"> Registration </a>"+ "Or" +
                              "<a href="+ login +"> Login </a>"
         res.send(messageString + combinedUrl);
+        // this only tells that an user exists with same mail id
     }else{
     const hashedPassword = await bcrypt.hash(req.body.confirmpsw , 10) ;
     newUser = new User({
@@ -98,7 +106,7 @@ app.post("/registration", async function(req,res){
             console.log(err);
         }else{
            req.session.isAuth = true ;
-           res.redirect("/secret");
+           res.redirect(`/secret/${savedUser._id}`);
         }
     });
     }
